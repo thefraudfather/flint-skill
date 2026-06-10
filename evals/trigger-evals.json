@@ -1,0 +1,22 @@
+[
+  {"query": "my procurement agent is about to wire 4,300 USDC to a vendor it found on some b2b marketplace, can you make sure it's actually allowed to do that before it goes through", "should_trigger": true},
+  {"query": "I built an agent that pays my SaaS invoices each month. before it pays this batch I want to be sure none have been tampered with", "should_trigger": true},
+  {"query": "an agent just hit my paid API with a signed authorization record attached (a JWS). do I trust it and serve the request?", "should_trigger": true},
+  {"query": "we're letting shopping agents check out with stablecoins on our store. how do I know the agent paying is legit and not hijacked, and keep proof if there's a chargeback", "should_trigger": true},
+  {"query": "my assistant agent read an email with new wire instructions and is about to send the payment, something feels off, verify before it sends", "should_trigger": true},
+  {"query": "before my trading bot sends funds to a counterparty agent I've never dealt with, check its track record", "should_trigger": true},
+  {"query": "set up my checkout endpoint so any AI agent that tries to buy has to prove it's authorized first", "should_trigger": true},
+  {"query": "agent's about to pay an invoice for 1200 usdc, just want a green light that it's safe", "should_trigger": true},
+  {"query": "I'm wiring up an x402 flow where agents pay per request, what do I need so I can trust them and keep evidence", "should_trigger": true},
+  {"query": "my agent delegates payments to sub-agents, how do I cap how much each can spend and prove it stayed in bounds", "should_trigger": true},
+  {"query": "help me design a passport-style onboarding screen for our travel app's signup", "should_trigger": false},
+  {"query": "my agent keeps timing out when it calls the OpenAI API, how do I add retries and backoff", "should_trigger": false},
+  {"query": "write a refund policy for my store's checkout page", "should_trigger": false},
+  {"query": "what's the difference between SPIFFE and mTLS for service-to-service auth in my k8s cluster", "should_trigger": false},
+  {"query": "I think my Stripe account got charged twice for the same order, how do I get a refund", "should_trigger": false},
+  {"query": "explain how OAuth token refresh works so I can fix my login", "should_trigger": false},
+  {"query": "draft a cold email to a fintech about a partnership", "should_trigger": false},
+  {"query": "my crypto wallet shows a pending USDC transfer that's stuck, how do I speed it up", "should_trigger": false},
+  {"query": "review this Python function that calculates sales tax on an order", "should_trigger": false},
+  {"query": "how do I verify a user's email address during signup", "should_trigger": false}
+]
