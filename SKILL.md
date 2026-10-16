@@ -64,7 +64,7 @@ Before you mint a Passport that will carry authority, ask the human for:
 3. The maximum transaction amount.
 4. A wallet address, if the agent has one. It does not prove wallet control by itself.
 
-Do not infer or invent any of these. A Passport with only a name is identity only and is not ready to transact. If no human is available you can still mint one, but say plainly that it is not ready to transact. A wrong controller cannot be edited, so mint a new Passport with the corrected value. A missing mandate can be added later with `update_agent_mandate`.
+Do not infer or invent any of these. A Passport with only a name is identity only and is not ready to transact. If no human is available you can still mint one, but tell the human it is not ready to transact. A wrong controller cannot be edited, so mint a new Passport with the corrected value. A missing mandate can be added later with `update_agent_mandate`.
 
 Put the answers in `agent` (`agent_name`, `controller_id`, `controller_type`, `wallet_address`) and `mandate` (`allowed_actions`, `max_transaction_amount`).
 
@@ -91,7 +91,7 @@ Before a payment, paid API call, checkout, transfer or x402 request:
 2. Read the `verdict` and act on it (see Verdicts). The result carries the signed record (`jws`) and its decoded `authorization_record`, whose `top_reasons` and `human_summary` say why. Show them to the human whenever you pause or stop.
 3. On ALLOW, call `verify_agent_authority` with the `jws`, the `partner_id` you used as `expected_partner_id` (`sandbox_public` if you took the default) and the `merchant_reference` you used as `expected_merchant_reference`. It checks the signature, the expiry and both values, and it returns an error for any verdict other than ALLOW. Execute only after it returns `is_valid` true.
 
-FLINT does not move money. Your payment rail does.
+FLINT verifies the agent. The rails move the money.
 
 ### Scout scan
 
