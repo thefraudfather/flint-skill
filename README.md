@@ -1,32 +1,42 @@
 # FLINT: Verify Agent Integrity Before Payment
 
-An Agent Skill that teaches Claude to verify an AI agent's integrity and authority
-with [FLINT](https://flint.network) before it moves money, so the agent can be
-trusted to transact and a signed evidence trail exists for every decision.
+An Agent Skill that connects an AI agent to [FLINT Network](https://flint.network)
+and checks what it may do before it moves money, so a signed evidence trail
+exists for every decision.
 
-Identity answers *who an agent is*. FLINT also answers *is it authorized for this
-action* and *is it still uncompromised* (not taken over, diverted, or
-impersonated). This skill runs FLINT's verify-before-pay loop at the moment an
-agent is about to spend: mint a Cross-Domain Agent Passport if needed, check the
-transaction, gate on an allow / step-up / review / block verdict, and report the
-outcome.
+Identity answers *who an agent is*. FLINT also checks *is it authorized for this
+action*. The skill connects the agent to FLINT, gets it an Agent Passport after
+asking the human for the accountable controller and the mandate, checks each
+transaction before money moves, and acts on the allow / step-up / review / block
+verdict.
 
-FLINT is rail-neutral: it verifies the agent, it does not move the money. The
-payment rail still executes the transfer; FLINT decides whether it should proceed.
+FLINT is rail-neutral: it checks the agent, it does not move the money. The
+payment rail still executes the transfer; the system that integrates FLINT
+decides whether it goes ahead.
+
+## One paste
+
+Any agent that can read a URL and use remote MCP can start from one line:
+
+```
+Read https://flint.network/skill.md and follow the steps.
+```
+
+https://flint.network/skill.md is the canonical copy. `SKILL.md` in this repo is
+the same text, kept in sync with it.
 
 ## What's in here
 
-- `SKILL.md` — the skill (trigger description and workflow).
-- `references/flint-tools.md` — argument detail and response shapes for the FLINT
-  MCP tools.
-- `evals/trigger-evals.json` — should-trigger / should-not-trigger queries for
+- `SKILL.md`: the skill (trigger description and steps).
+- `evals/trigger-evals.json`: should-trigger and should-not-trigger queries for
   tuning the description.
 
 ## Requirements
 
 The skill uses the **FLINT MCP connector** at `https://flint.network/mcp`
-(Streamable HTTP). It is public: no account, no API key, no setup. Add it as a
-custom remote MCP connector in your client, then the skill can run the loop.
+(Streamable HTTP). No API key is needed. Add it as a custom remote MCP connector
+in your client, then the skill can run. An email sign-in code (OTP) is used to
+mint a Passport the human owns from the start.
 
 Documentation: https://flint.network/connect
 

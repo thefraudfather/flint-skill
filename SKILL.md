@@ -1,179 +1,154 @@
 ---
 name: flint-verify-agent-integrity
 description: >-
-  Verify an AI agent's integrity and authority with FLINT before it moves money,
-  so it can be trusted to transact and you keep signed evidence. Use whenever an
-  agent or workflow is about to spend, pay, purchase, send or swap funds or
-  stablecoins, call a paid API, run an x402 request, or check out, especially
-  across an organizational boundary where the counterparty did not issue the
-  agent. It confirms the agent is authorized and uncompromised (not taken over,
-  diverted, or impersonated), returns an allow / step-up / review / block
-  verdict, and emits a signed record the counterparty keeps as dispute evidence.
-  Also use when building or reviewing agent-commerce, agentic-checkout, or
-  paid-API flows; when a merchant or API seller must verify a signed record
-  received from an agent; or when vetting a counterparty agent's reputation
-  before a higher-risk deal. Trigger even if the user does not say "FLINT" but is
-  about to let an agent transact. Requires the FLINT MCP connector
-  (flint.network/mcp), no account needed.
+  Connect an AI agent to FLINT Network and check what it may do before it moves
+  money. Use when an agent is about to spend, pay, buy, send or swap funds or
+  stablecoins, call a paid API, make an x402 request, or check out, especially
+  where the counterparty did not issue the agent. Also use to give an agent a
+  FLINT Agent Passport, to verify a signed FLINT record received from an agent,
+  or when building agent-commerce flows. FLINT returns an ALLOW, STEP-UP, REVIEW
+  or BLOCK verdict and a signed record to keep as evidence. Trigger even if the
+  user does not say FLINT but is about to let an agent transact. Requires the
+  remote MCP server at https://flint.network/mcp. No API key.
 ---
 
-# FLINT: Verify Agent Integrity Before Payment
+# FLINT Network
 
-## What this is for
+FLINT Network is fraud and compliance infrastructure for AI agents that can or do touch money. It gives an agent a Passport (a signed identity tied to the human or organization accountable for it), checks a transaction before money moves, and returns a signed record of the decision. This file is the whole setup. Do sections 1 and 2 once. Do section 3 before every spend.
 
-AI agents are being handed spending authority across payment and stablecoin
-rails. The existing fraud stack was built for humans and degrades when an agent,
-rather than a person, is the one transacting. Inside a single organization,
-identity is largely solved (SPIFFE issues workload identity, A2A signs agent
-cards, the platform governs its own agents). None of that travels across an
-organizational boundary: when an agent shows up at a merchant or API the issuer
-is not a party to, the counterparty has no way to know the agent is who it claims,
-is allowed to make this purchase, and has not been hijacked mid-task.
+## Rules
 
-FLINT is the layer that answers those questions at transaction time. This skill
-teaches you to use FLINT's verify-before-pay loop on your own, at the moment an
-agent is about to move value, so the agent can be trusted to transact and a
-signed evidence trail exists if anything is later disputed.
+- FLINT never needs a private key or seed phrase. Never share either with FLINT, and never put one in a tool call, a message or a log.
+- Never infer or invent authority. Ask the human (section 2).
+- A `session_token` is a password. Never print or log it. A `claim_url` is a one-time secret: give it only to the human who owns the agent, and do not log or post it.
+- Paying FLINT is a spend. Get the human's yes before you pay for a Scout scan or buy scan credits.
+- If a call fails, tell the human what failed and what you need. Do not guess your way around it.
 
-The distinction that matters: identity answers *who the agent is*, FLINT also
-answers *is it authorized for this action* and *is it still uncompromised*. Those
-last two are the integrity question, and they are what protects the user from an
-agent that has been taken over, diverted to a new payee, or impersonated.
+## 1. Connect
 
-**FLINT is rail-neutral. It verifies the agent; it does not move the money.** The
-payment rail (card, stablecoin, x402, ACH) still executes the transfer. FLINT
-sits in front of it and decides whether the transfer should proceed.
+Add the remote MCP server `https://flint.network/mcp` (Streamable HTTP, no API key).
 
-## How agents get compromised (why this matters)
+Any MCP client:
 
-The unsettling part is that a compromised agent usually looks fine. Identity
-checks still say "yes, this is agent X." A few real patterns this verify-before-pay
-check is built to catch:
+```json
+{
+  "mcpServers": {
+    "flint": {
+      "type": "streamable-http",
+      "url": "https://flint.network/mcp"
+    }
+  }
+}
+```
 
-- **Diversion by injected instruction.** An agent reads a web page, email,
-  invoice, or tool result that carries hidden instructions, and follows them,
-  quietly changing the payee or redirecting a legitimate payment to an attacker's
-  wallet. The agent passes every health check; its behavior simply drifted. The
-  payment looks routine unless something verifies the action against the agent's
-  declared authority before it executes. FLINT's integrity check plus a declared
-  scope catches a payment that no longer matches what the agent was authorized to
-  do.
+- Claude Desktop: add a custom remote connector with that URL.
+- Claude Code. The plugin installs the connector and a FLINT skill:
 
-- **Stolen credential replayed across organizations.** An agent's OAuth token or
-  workload credential is compromised and reused. Because each domain validates the
-  token on its own and there is no shared revocation, the stolen identity keeps
-  transacting across organizations even after the breach is known, the pattern
-  behind the 2025 Salesloft-Drift compromise that rippled into downstream
-  customers. Cross-domain verification with revocation is exactly the gap here.
+  ```
+  /plugin marketplace add thefraudfather/flint-plugin
+  /plugin install flint@flint-network
+  ```
 
-- **Impersonation and cold starts.** A brand-new or spoofed agent presents itself
-  as a trusted one with no verifiable principal attestation. Without a portable,
-  signed credential, a counterparty cannot tell it apart from the real thing.
-  FLINT returns a low or blocked verdict for an agent that cannot prove who
-  authorized it (see the cold-start block behavior in the tool reference).
+- Cowork and Claude.ai: Settings, Plugins, Add marketplace, Add from a repository, paste `https://github.com/thefraudfather/flint-plugin`, then install FLINT Cross-Domain Agent Passport.
 
-The common thread: identity alone says *who* the agent is. Only a check of
-*whether this specific action is authorized and the agent is still uncompromised,
-at the moment of payment* catches these. That is the integrity question this skill
-exists to answer, and it is why you run the check before value moves, not after.
+Check that the tools listed at the end of this file are available. If they are not, tell the human the connection failed and which client you are in, then stop.
 
-## Prerequisite
+## 2. Get a Passport
 
-This skill uses the **FLINT MCP connector** at `https://flint.network/mcp`. It is
-public: no account, no API key, no setup. If the FLINT tools are not available,
-tell the user to add `https://flint.network/mcp` as a custom remote MCP connector
-(Streamable HTTP), then continue.
+An Agent Passport is the agent's signed identity. Issuing one is free. It signs identity only: the agent, its accountable controller and an optional wallet address. What the agent may do is the mandate, which is separate and can be changed later.
 
-The FLINT tools you will use:
+Before you mint a Passport that will carry authority, ask the human for:
 
-| Tool | Use it to |
-|---|---|
-| `issue_agent_passport` | Mint a free, signed Cross-Domain Agent Passport for an agent that does not have one. |
-| `issue_authorization_record` | Check authority and integrity for a specific transaction and get a signed verdict. This is the core call. |
-| `verify_agent_authority` | Cryptographically verify a signed record you received from another agent. |
-| `lookup_agent_reputation` | Check a counterparty agent's aggregate reputation before a higher-risk deal. |
-| `submit_transaction_outcome` | Report the result (completed, disputed, flagged) so the trust graph learns. |
-| `generate_authorization_scope` | Build bounded delegated authority (amount, time, counterparties, actions) to declare on a record. |
-| `create_flint_trust_manifest` | Generate a `/.well-known/flint.json` declaring that agents must verify with FLINT. |
-| `get_agent_passport` / `update_agent_mandate` | Resolve a passport, or update its spend mandate without reissuing. |
+1. The accountable controller: `controller_id` and `controller_type` (`user` or `organization`).
+2. Allowed actions. Use the action names listed in the `issue_agent_passport` tool description. Do not make up action names.
+3. The maximum transaction amount.
+4. A wallet address, if the agent has one. It does not prove wallet control by itself.
 
-See `references/flint-tools.md` for argument detail and response shapes.
+Do not infer or invent any of these. A Passport with only a name is identity only and is not ready to transact. If no human is available you can still mint one, but say plainly that it is not ready to transact. A wrong controller cannot be edited, so mint a new Passport with the corrected value. A missing mandate can be added later with `update_agent_mandate`.
 
-## The core loop: verify before value moves
+Put the answers in `agent` (`agent_name`, `controller_id`, `controller_type`, `wallet_address`) and `mandate` (`allowed_actions`, `max_transaction_amount`).
 
-Run this whenever an agent is about to make a payment, paid API call, checkout,
-x402 request, or stablecoin transfer.
+**Recommended: sign in, then mint.** The Passport is owned from the start.
 
-1. **Make sure the acting agent has a passport.** If you do not already have a
-   FLINT `passport_id` (begins with `kya_`) or `flint_agent_id` for this agent,
-   mint one with `issue_agent_passport`. The only required field is a name:
-   `{ "agent": { "agent_name": "Invoice Bot" } }`. Minting is free and anonymous.
+1. Call `auth_request_otp` with an inbox the human controls. FLINT emails a one-time code to it.
+2. Read the code from that inbox, or ask the human for it.
+3. Call `auth_verify_otp` with the same email and the code. It returns a `session_token`.
+4. Call `issue_agent_passport` with `agent`, `mandate` and that `session_token`.
 
-2. **Call `issue_authorization_record` before the rail executes.** Pass the
-   intended `transaction` (must include `amount_display`, e.g. `"847.00 USDC"`,
-   plus a `merchant_reference` when you have one) and an `agent_claim`. If the
-   agent has a runtime identity, include it in the claim so FLINT can attest it,
-   for example `"agent_claim": { "spiffe_svid": "spiffe://acme.example/ns/agents/sa/invoice-bot" }`.
-   If you generated a bounded scope, pass it as `declared_scope`.
+The Passport is owned at issuance. There is no claim step.
 
-3. **Gate on the verdict.** The response returns a four-state `verdict` and a
-   signed compact `jws` record. Act on the verdict, never ignore it:
+**Without signing in.** Call `issue_agent_passport` with no `session_token`. It returns a Passport and a one-time `claim_url`. The Passport stays unclaimed until the human opens the link and signs in. Walk the human through it. Claiming turns on Sentinel takeover alerts and gives the owner a one-tap kill switch. Do not just paste the link.
 
-   | Verdict | What it means | What to do |
-   |---|---|---|
-   | `allow` | Authorized and integrity-clean. | Proceed with the transaction on the rail. |
-   | `step-up` | Elevated risk; needs stronger proof or a human. | Pause and escalate to a human approver, or obtain a stronger attestation, before proceeding. |
-   | `review` | Anomalous; should be held for inspection. | Hold the transaction and surface the record's `top_reasons` and `human_summary` for review. Do not silently proceed. |
-   | `block` | Unauthorized or compromised. | Stop. Do not execute. Surface the signed evidence (`dispute_evidence`) explaining why. |
+If a claim link is lost, expired or already used, call `refresh_claim_token`. Never mint a new Passport to recover a claim.
 
-   The record carries the reasoning (`top_reasons`, per-layer attestations such as
-   Circle compliance screening and runtime integrity, and a human-readable
-   summary). When you stop or escalate, show the user that reasoning rather than a
-   bare verdict, it is the *why* that makes the decision trustworthy.
+Give the human the `passport_url` from the result.
 
-4. **Report the outcome.** After the transaction completes, is disputed, or is
-   flagged, call `submit_transaction_outcome` with the `record_id` (begins with
-   `frv_`) and the outcome. This is what lets reputation improve over time, skip
-   it and the trust graph never learns.
+## 3. Before any spend
 
-## Other things this skill covers
+Before a payment, paid API call, checkout, transfer or x402 request:
 
-**Verifying a record you received (merchant or API-seller side).** If an agent
-hands you a signed verification record before you serve a paid request, verify it
-with `verify_agent_authority` (pass the `jws`). It confirms the signature against
-FLINT's public keys, checks expiry, and decodes the verdict. Trust the record, not
-the agent's word.
+1. Call `issue_authorization_record`. Pass `transaction` with `amount_display` (required; a plain decimal such as `847.00`), `token` (such as `{ "symbol": "USDC" }`), `chain` (CAIP-2, such as `eip155:8453`) and `counterparty_address`. Also pass a `merchant_reference` for this transaction, and the merchant's `partner_id` if you were given one (the default is `sandbox_public`). Put any runtime identity you hold in `agent_claim`, such as a SPIFFE SVID.
+2. Read the `verdict` and act on it (see Verdicts). The result carries the signed record (`jws`) and its decoded `authorization_record`, whose `top_reasons` and `human_summary` say why. Show them to the human whenever you pause or stop.
+3. On ALLOW, call `verify_agent_authority` with the `jws`, the `partner_id` you used as `expected_partner_id` (`sandbox_public` if you took the default) and the `merchant_reference` you used as `expected_merchant_reference`. It checks the signature, the expiry and both values, and it returns an error for any verdict other than ALLOW. Execute only after it returns `is_valid` true.
 
-**Vetting an unknown counterparty.** Before a higher-risk deal with an agent you
-have not dealt with, call `lookup_agent_reputation` with its `flint_agent_id` to
-get partner-safe aggregate reputation. This lets you size up a stranger without
-either side exposing raw transaction data.
+FLINT does not move money. Your payment rail does.
 
-**Bounding delegated authority.** When an agent acts on behalf of a principal with
-limited authority, build the limits first with `generate_authorization_scope`
-(max per transaction, time window, allowed actions and counterparties) and pass
-the result as `declared_scope` on the record. A record with a declared scope that
-the action stays within is stronger evidence than an unscoped one.
+### Scout scan
 
-**Declaring requirements as a merchant.** If the user runs a storefront, API, or
-x402 endpoint and wants arriving agents to verify, generate a
-`/.well-known/flint.json` with `create_flint_trust_manifest` and have them publish
-it.
+`run_flint_scout` scans one intended transaction before it executes. Its `transaction` needs `action` (for example `stablecoin_transfer`), `chain`, `amount_display` and `counterparty_address`; `token` is optional. Add `passport_id` if you have one.
 
-**Checking readiness.** If the user is designing an agent-commerce flow and asks
-whether it is safe, call `validate_agent_commerce_readiness` with a short
-description of the architecture; it returns the gaps and the recommended pattern.
+A scan is paid. There are two ways:
 
-## Principles to hold onto
+- Per call over x402. With no `session_token`, the first call returns a 402 payment challenge instead of a scan. A wallet-enabled client signs the challenge, and you retry with the resulting `payment_signature`.
+- Prepaid credits. After signing in, call `scout_credits_topup` once with your `session_token` and pay the `pay_url` it returns. Then call `run_flint_scout` with the same `session_token` and no `payment_signature`. Each scan uses one credit. `scout_credits_balance` shows what is left.
 
-- **Verify before, not after.** The whole point is to decide *before* value moves.
-  If you find yourself about to execute a payment without an `allow`, stop and run
-  the check first.
-- **Compose, do not replace.** FLINT sits on top of whatever identity the agent
-  already has. If the agent carries a SPIFFE SVID or a signed agent card, pass it
-  through as the runtime claim; FLINT verifies authority and behavior on top of it
-  rather than asking anyone to re-issue identity.
-- **Stay rail-neutral.** Never imply FLINT moves the money. It returns a verdict
-  and signed evidence; the payment provider executes.
-- **Surface the evidence.** A verdict the user cannot interrogate is not
-  trustworthy. When you hold, step up, or block, show the reasons and the record.
+The 402 response states the price and carries a `pay_recipe` with next steps for both ways. Paying FLINT is not proof that the agent is authorized. If a payment attempt returns `do_not_retry_automatically`, stop and ask the human.
+
+After you act, call `report_scout_outcome` with the scan's `record_id` and what happened: `executed`, `held`, `cancelled` or `executed_despite_block`. Authorize with your `session_token` if the account owns the Passport you presented, or with the `caller_binding_token` in the scan's `caller_obligation`. FLINT cannot stop a wallet, so this report is how the outcome gets on the record.
+
+## Verdicts
+
+FLINT returns one of four. In tool results the values are `allow`, `step_up`, `review` and `block`.
+
+- ALLOW: FLINT's checks support this action. Verify the record (section 3, item 3), then proceed.
+- STEP-UP: FLINT needs more verifiable evidence before it can say yes. This is the normal first verdict for an agent FLINT has not seen. It is not a finding of fraud. Pause, tell the human what the record says, and wait for stronger evidence or the human's decision.
+- REVIEW: something did not fit and a person should look. Hold the transaction and ask the human. Do not proceed on your own.
+- BLOCK: FLINT found a specific adverse signal, such as an amount over a declared limit or a frozen or revoked Passport. Do not execute. Show the human the reasons.
+
+A signed record is evidence of what FLINT saw at that moment. It is not a guarantee that a transaction is safe or will succeed. FLINT cannot stop a wallet. The system that integrates FLINT decides whether a payment goes ahead.
+
+`lookup_agent_reputation` returns aggregate history for a `flint_agent_id`. Use it as context about a counterparty. It does not feed the live verdict.
+
+## Tools
+
+The server exposes 17 tools.
+
+Sign in and Passports
+
+- `auth_request_otp`: emails a one-time sign-in code to an inbox.
+- `auth_verify_otp`: exchanges the code for a `session_token`.
+- `issue_agent_passport`: mints a free Passport. Pass `session_token` to own it at mint.
+- `get_agent_passport`: reads a Passport, its mandate and its ownership.
+- `update_agent_mandate`: changes allowed actions and limits without minting again.
+- `claim_agent_passport`: attaches an unclaimed Passport to a signed-in account.
+- `refresh_claim_token`: issues a new claim link for an unclaimed Passport.
+
+Checking a transaction
+
+- `issue_authorization_record`: checks authority before a spend. Returns a verdict and a signed record.
+- `verify_agent_authority`: verifies a signed record. Errors unless the verdict is ALLOW.
+- `run_flint_scout`: pre-transaction scan, paid per call or from prepaid credits.
+- `scout_credits_topup`: buys prepaid scan credits.
+- `scout_credits_balance`: shows the credit balance.
+- `report_scout_outcome`: reports what happened after a scan.
+
+Context and helpers
+
+- `lookup_agent_reputation`: aggregate history for a `flint_agent_id`. Context only.
+- `generate_authorization_scope`: builds limits to pass as `declared_scope`.
+- `create_flint_trust_manifest`: builds a `/.well-known/flint.json` for a merchant or API seller.
+- `validate_agent_commerce_readiness`: reviews an agent-commerce design for gaps.
+
+## If you get stuck
+
+Tell the human what you needed and could not get, then ask them to email contact@flint.network with it.
